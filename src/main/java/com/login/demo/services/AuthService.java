@@ -15,9 +15,11 @@ import com.login.demo.dto.LoginDto;
 import com.login.demo.dto.RegisterDto;
 
 import com.login.demo.exceptions.ResourceAlreadyInUseException;
+import com.login.demo.exceptions.ResourceNotFoundException;
 import com.login.demo.models.CustomUserDetails;
 import com.login.demo.models.User;
 import com.login.demo.services.security.JwtTokenProvider;
+
 
 @Service
 public class AuthService {
@@ -28,20 +30,22 @@ public class AuthService {
 	    private final AuthenticationManager authenticationManager;
 	    private final JwtTokenProvider tokenProvider;
 
+
+	   
+
+		
+		
 	    @Autowired
 	    public AuthService(UserService userService, PasswordEncoder passwordEncoder,
-				AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider) {
-			super();
+				AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider
+				) {
 			this.userService = userService;
 			this.passwordEncoder = passwordEncoder;
 			this.authenticationManager = authenticationManager;
 			this.tokenProvider = tokenProvider;
 		}
 
-		
-		
-	    
-	    /**
+		/**
 	     * Registers a new user in the database by performing a series of quick checks.
 	     *
 	     * @return A user object if successfully created
@@ -105,7 +109,6 @@ public class AuthService {
 	    
 	    
 	   
-	    
 	
 
 	    

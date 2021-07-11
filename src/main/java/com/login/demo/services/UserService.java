@@ -10,12 +10,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import com.login.demo.dao.RoleRepository;
-import com.login.demo.dao.UserRepository;
 import com.login.demo.dto.RegisterDto;
 import com.login.demo.dto.UserDto;
 import com.login.demo.models.Role;
 import com.login.demo.models.User;
+import com.login.demo.repository.RoleRepository;
+import com.login.demo.repository.UserRepository;
 
 
 @Service
@@ -88,7 +88,7 @@ public class UserService {
         newUser.setUsername(registerRequest.getEmail());
         newUser.addRoles(getRolesForNewUser(isNewUserAsAdmin));
         newUser.setActive(true);
-        newUser.setEmailVerified(false);
+        newUser.setEmailVerified(true);
         return newUser;
     }
 

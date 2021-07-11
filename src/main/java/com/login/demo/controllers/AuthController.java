@@ -1,6 +1,8 @@
 package com.login.demo.controllers;
 
 
+import java.util.Optional;
+
 import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,11 +21,13 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import com.login.demo.dto.LoginDto;
 import com.login.demo.dto.RegisterDto;
+
+import com.login.demo.exceptions.InvalidTokenRequestException;
 import com.login.demo.exceptions.UserLoginException;
 import com.login.demo.exceptions.UserRegistrationException;
-import com.login.demo.models.ApiResponse;
 import com.login.demo.models.CustomUserDetails;
-import com.login.demo.models.JwtAuthenticationResponse;
+import com.login.demo.models.payload.ApiResponse;
+import com.login.demo.models.payload.JwtAuthenticationResponse;
 import com.login.demo.services.AuthService;
 import com.login.demo.services.security.JwtTokenProvider;
 
@@ -34,12 +38,15 @@ public class AuthController {
 	
     private final AuthService authService;
     private final JwtTokenProvider tokenProvider;
+    private final ApplicationEventPublisher applicationEventPublisher;
+
 
 
     @Autowired
-    public AuthController(AuthService authService, JwtTokenProvider tokenProvider) {
+    public AuthController(AuthService authService, JwtTokenProvider tokenProvider,ApplicationEventPublisher applicationEventPublisher) {
         this.authService = authService;
         this.tokenProvider = tokenProvider;
+        this.applicationEventPublisher=applicationEventPublisher;
     }
     
     
@@ -89,15 +96,15 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity registerUser(@Valid @RequestBody RegisterDto registrationRequest) {
 
-        return authService.registerUser(registrationRequest)
+    	return authService.registerUser(registrationRequest)
                 .map(user -> {
-                    UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/auth/registrationConfirmation");
                    
                     return ResponseEntity.ok(new ApiResponse(true, "User registered successfully. Check your email for verification"));
                 })
                 .orElseThrow(() -> new UserRegistrationException(registrationRequest.getEmail(), "Missing user object in database"));
-    }
+    	}
 
+    
     
     
     

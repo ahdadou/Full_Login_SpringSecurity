@@ -5,8 +5,8 @@ import java.util.Collection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.login.demo.dao.RoleRepository;
 import com.login.demo.models.Role;
+import com.login.demo.repository.RoleRepository;
 
 @Service
 public class RoleService {

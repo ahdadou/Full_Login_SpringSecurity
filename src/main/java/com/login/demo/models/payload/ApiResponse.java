@@ -1,4 +1,4 @@
-package com.login.demo.models;
+package com.login.demo.models.payload;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

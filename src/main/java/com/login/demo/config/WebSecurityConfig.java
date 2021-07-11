@@ -58,12 +58,12 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter{
     protected void configure(AuthenticationManagerBuilder auth) throws Exception {
         auth.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder());
     }
-//
-//    @Override
-//    public void configure(WebSecurity web) {
-//        web.ignoring().antMatchers("/v2/api-docs", "/configuration/ui", "/swagger-resources/**", "/configuration/**",
-//                "/swagger-ui.html", "/webjars/**");
-//    }
+
+    @Override
+    public void configure(WebSecurity web) {
+        web.ignoring().antMatchers("/v2/api-docs", "/configuration/ui", "/swagger-resources/**", "/configuration/**",
+                "/swagger-ui.html", "/webjars/**");
+    }
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {

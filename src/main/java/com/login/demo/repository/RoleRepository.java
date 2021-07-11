@@ -1,4 +1,4 @@
-package com.login.demo.dao;
+package com.login.demo.repository;
 
 import java.util.Optional;
 
