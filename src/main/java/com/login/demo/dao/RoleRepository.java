@@ -11,6 +11,5 @@ import com.login.demo.models.RoleName;
 @Repository
 public interface RoleRepository extends JpaRepository<Role, Long>{
 
-	Optional<Role> findByRoleName(RoleName roleName);
 
 }

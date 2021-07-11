@@ -3,86 +3,122 @@ package com.login.demo.services;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.login.demo.dao.RoleRepository;
 import com.login.demo.dao.UserRepository;
+import com.login.demo.dto.RegisterDto;
 import com.login.demo.dto.UserDto;
 import com.login.demo.models.Role;
-import com.login.demo.models.RoleName;
 import com.login.demo.models.User;
+
 
 @Service
 public class UserService {
 	
-	private UserRepository userRepository;
-	private RoleRepository roleRepository;
+   // private static final Logger logger = Logger.getLogger(UserService.class);
+    private final PasswordEncoder passwordEncoder;
+    private final UserRepository userRepository;
+    private final RoleService roleService;
 
 	@Autowired
-	public UserService(UserRepository userRepository,RoleRepository roleRepository) {
-		this.userRepository = userRepository;
-		this.roleRepository= roleRepository;
+	public UserService(PasswordEncoder passwordEncoder,UserRepository userRepository, RoleService roleService) {
+        this.passwordEncoder = passwordEncoder;
+        this.userRepository = userRepository;
+        this.roleService = roleService;
 	}
 	
 	
-	public User save(UserDto user) {
-		
-		if(userRepository.existsByEmail(user.getEmail())) {
-			throw new RuntimeException("User Exist");
-		}
-		
-		if(userRepository.existsByUsername(user.getUsername())) {
-			throw new RuntimeException("User Exist");
-		
-		}
-		
-		
-		User u = new User();
-		u.setUsername(user.getUsername());
-		u.setEmail(user.getEmail());
-		u.setPassword(user.getPassword());
-		
-		System.out.println(u.getRoles());
-		ArrayList<Role> roles = new ArrayList<>();
-		
-		user.getRole().forEach(role -> {
-			Role r = null;
-			switch (role) {
-			
-			case "ADMIN":
-				 r = roleRepository.findByRoleName(RoleName.ADMIN)
-						.orElseThrow(()-> new RuntimeException("This Role Not Found"));
-				roles.add(r);
-				break;
+	 /**
+     * Finds a user in the database by username
+     */
+    public Optional<User> findByUsername(String username) {
+        return userRepository.findByUsername(username);
+    }
 
-			default:
-				 r = roleRepository.findByRoleName(RoleName.USER)
-				.orElseThrow(()-> new RuntimeException("This Role Not Found"));
-				roles.add(r);
-				break;
-			}
-		});
-		
-		u.setRoles(roles);
-		
-		
-		return userRepository.save(u);
-	}
-	
-	public void delete(long id) {
-		userRepository.deleteById(id);
-	}
-	
-	public User getOne(long id) throws Exception {
-		return userRepository.findById(id).orElseThrow(()->new  Exception("User Not Found"));
-	}
-	
-	public List<User> getAll() {
-		return userRepository.findAll();
-	}
+    /**
+     * Finds a user in the database by email
+     */
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    /**
+     * Find a user in db by id.
+     */
+    public Optional<User> findById(Long Id) {
+        return userRepository.findById(Id);
+    }
+
+    /**
+     * Save the user to the database
+     */
+    public User save(User user) {
+        return userRepository.save(user);
+    }
+
+    /**
+     * Check is the user exists given the email: naturalId
+     */
+    public Boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
+    }
+
+    /**
+     * Check is the user exists given the username: naturalId
+     */
+    public Boolean existsByUsername(String username) {
+        return userRepository.existsByUsername(username);
+    }
+
+
+    /**
+     * Creates a new user from the registration request
+     */
+    public User createUser(RegisterDto registerRequest) {
+        User newUser = new User();
+        Boolean isNewUserAsAdmin = registerRequest.getRegisterAsAdmin();
+        newUser.setEmail(registerRequest.getEmail());
+        newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+        newUser.setUsername(registerRequest.getEmail());
+        newUser.addRoles(getRolesForNewUser(isNewUserAsAdmin));
+        newUser.setActive(true);
+        newUser.setEmailVerified(false);
+        return newUser;
+    }
+
+    /**
+     * Performs a quick check to see what roles the new user could be assigned to.
+     *
+     * @return list of roles for the new user
+     */
+    private Set<Role> getRolesForNewUser(Boolean isToBeMadeAdmin) {
+        Set<Role> newUserRoles = new HashSet<>(roleService.findAll());
+        if (!isToBeMadeAdmin) {
+            newUserRoles.removeIf(Role::isAdminRole);
+        }
+        // logger.info("Setting user roles: " + newUserRoles);
+        return newUserRoles;
+    }
+
+    /**
+     * Log the given user out and delete the refresh token associated with it. If no device
+     * id is found matching the database for the given user, throw a log out exception.
+     */
+//    public void logoutUser(@CurrentUser CustomUserDetails currentUser, LogOutRequest logOutRequest) {
+//        String deviceId = logOutRequest.getDeviceInfo().getDeviceId();
+//        UserDevice userDevice = userDeviceService.findByUserId(currentUser.getId())
+//                .filter(device -> device.getDeviceId().equals(deviceId))
+//                .orElseThrow(() -> new UserLogoutException(logOutRequest.getDeviceInfo().getDeviceId(), "Invalid device Id supplied. No matching device found for the given user "));
+//
+//        logger.info("Removing refresh token associated with device [" + userDevice + "]");
+//        refreshTokenService.deleteById(userDevice.getRefreshToken().getId());
+//    }
 	
 	
 

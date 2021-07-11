@@ -1,5 +1,17 @@
 package com.login.demo.models;
 
+/**
+ * The enum Role role.
+ */
 public enum RoleName {
-	ADMIN,USER
+
+    /**
+     * Role admin authority role.
+     */
+    ROLE_ADMIN,
+
+    /**
+     * Role user authority role.
+     */
+    ROLE_USER
 }

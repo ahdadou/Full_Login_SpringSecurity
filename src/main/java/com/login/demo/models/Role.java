@@ -1,10 +1,14 @@
 package com.login.demo.models;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
+import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -13,49 +17,61 @@ import javax.persistence.Table;
 
 import org.hibernate.annotations.NaturalId;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
-@Entity
-@Table(name = "roles")
+
+@Entity(name = "ROLE")
 public class Role {
 	
 	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private long id;
-	@Enumerated(EnumType.STRING)
-	@NaturalId
-	private RoleName roleName;
-	
-	
-	
-	
-	
-	
-	public Role() {
-		super();
-	}
-	
-	public Role(long id, RoleName roleName) {
-		super();
-		this.id = id;
-		this.roleName = roleName;
-	}
-	
-	public long getId() {
-		return id;
-	}
-	public void setId(long id) {
-		this.id = id;
-	}
-	public RoleName getRoleName() {
-		return roleName;
-	}
-	public void setRoleName(RoleName roleName) {
-		this.roleName = roleName;
-	}
+    @Column(name = "ROLE_ID")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "ROLE_NAME")
+    @Enumerated(EnumType.STRING)
+    @NaturalId
+    private RoleName role;
+
+    @ManyToMany(mappedBy = "roles", fetch = FetchType.LAZY)
+    @JsonIgnore
+    private Set<User> userList = new HashSet<>();
+
+    public Role(RoleName role) {
+        this.role = role;
+    }
+
+    public Role() {
+
+    }
+
+    public boolean isAdminRole() {
+        return null != this && this.role.equals(RoleName.ROLE_ADMIN);
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public RoleName getRole() {
+        return role;
+    }
+
+    public void setRole(RoleName role) {
+        this.role = role;
+    }
+
+    public Set<User> getUserList() {
+        return userList;
+    }
+
+    public void setUserList(Set<User> userList) {
+        this.userList = userList;
+    }
 
 	
 	
