@@ -43,11 +43,9 @@ public class OnUserRegistrationCompleteListener implements ApplicationListener<O
      * Send email verification to the user and persist the token in the database.
      */
     private void sendEmailVerification(OnUserRegistrationCompleteEvent event) {
-        System.out.println("--------------------***** From sendEmailVerification Listenner _---------------***");
         User user = event.getUser();
         String token = emailVerificationTokenService.generateNewToken();
         emailVerificationTokenService.createVerificationToken(user, token);
-
         String recipientAddress = user.getEmail();
         String emailConfirmationUrl = event.getRedirectUrl().queryParam("token", token).toUriString();
 

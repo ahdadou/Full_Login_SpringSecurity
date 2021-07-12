@@ -20,11 +20,13 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 import com.login.demo.dto.LoginDto;
 import com.login.demo.dto.RegisterDto;
+import com.login.demo.event.OnRegenerateEmailVerificationEvent;
 import com.login.demo.event.OnUserRegistrationCompleteEvent;
 import com.login.demo.exceptions.InvalidTokenRequestException;
 import com.login.demo.exceptions.UserLoginException;
 import com.login.demo.exceptions.UserRegistrationException;
 import com.login.demo.models.CustomUserDetails;
+import com.login.demo.models.EmailVerificationToken;
 import com.login.demo.models.payload.ApiResponse;
 import com.login.demo.models.payload.JwtAuthenticationResponse;
 import com.login.demo.services.AuthService;
@@ -95,13 +97,9 @@ public class AuthController {
     public ResponseEntity registerUser(@Valid @RequestBody RegisterDto registrationRequest) {
         return authService.registerUser(registrationRequest)
                 .map(user -> {
-                	UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/auth/registrationConfirmation");
-                    System.out.println(urlBuilder);
+                	UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/auth/registrationConfirmation");            	
                 	OnUserRegistrationCompleteEvent onUserRegistrationCompleteEvent = new OnUserRegistrationCompleteEvent(user, urlBuilder);
                     applicationEventPublisher.publishEvent(onUserRegistrationCompleteEvent);
-                    System.out.println("-********* From registerUser authcontroller --*********");
-                    System.out.println(onUserRegistrationCompleteEvent);
-
                     return ResponseEntity.ok(new ApiResponse(true, "User registered successfully. Check your email for verification"));
                 })
                 .orElseThrow(() -> new UserRegistrationException(registrationRequest.getEmail(), "Missing user object in database"));
@@ -119,6 +117,39 @@ public class AuthController {
                 .map(user -> 
                 ResponseEntity.ok(new ApiResponse(true, "User verified successfully")))
                 .orElseThrow(() -> new InvalidTokenRequestException("Email Verification Token", token, "Failed to confirm. Please generate a new email verification request"));
+    }
+    
+    /**
+     * Resend the email registration mail with an updated token expiry. Safe to
+     * assume that the user would always click on the last re-verification email and
+     * any attempts at generating new token from past (possibly archived/deleted)
+     * tokens should fail and report an exception.
+     */
+    @GetMapping("/resendRegistrationToken")   
+    public ResponseEntity resendRegistrationToken(@RequestParam("token") String existingToken) {
+
+        EmailVerificationToken newEmailToken = authService.recreateRegistrationToken(existingToken)
+                .orElseThrow(() -> new InvalidTokenRequestException("Email Verification Token", existingToken, "User is already registered. No need to re-generate token"));
+
+        return Optional.ofNullable(newEmailToken.getUser())
+                .map(registeredUser -> {
+                    UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/auth/registrationConfirmation");
+                    OnRegenerateEmailVerificationEvent regenerateEmailVerificationEvent = new OnRegenerateEmailVerificationEvent(registeredUser, urlBuilder, newEmailToken);
+                    applicationEventPublisher.publishEvent(regenerateEmailVerificationEvent);
+                    return ResponseEntity.ok(new ApiResponse(true, "Email verification resent successfully"));
+                })
+                .orElseThrow(() -> new InvalidTokenRequestException("Email Verification Token", existingToken, "No user associated with this request. Re-verification denied"));
+    }
+    
+    
+    /**
+     * Get Token By Email 
+     * 
+     */
+    @GetMapping("/resentTokenByEmail")
+    public ResponseEntity resendTokenByEmail(@RequestParam("email") String email) {
+    	return ResponseEntity.ok(authService.getTokenByEmail(email));
+    	
     }
     
     

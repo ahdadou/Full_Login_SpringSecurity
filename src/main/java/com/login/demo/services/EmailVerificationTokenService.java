@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import com.login.demo.exceptions.InvalidTokenRequestException;
 import com.login.demo.models.EmailVerificationToken;
+import com.login.demo.models.TokenStatus;
 import com.login.demo.models.User;
 import com.login.demo.repository.EmailVerificationTokenRepository;
 
@@ -32,6 +33,7 @@ public class EmailVerificationTokenService {
     public void createVerificationToken(User user, String token) {
         EmailVerificationToken emailVerificationToken = new EmailVerificationToken();
         emailVerificationToken.setToken(token);
+        emailVerificationToken.setTokenStatus(TokenStatus.STATUS_PENDING);
         emailVerificationToken.setUser(user);
         emailVerificationToken.setExpiryDate(Instant.now().plusMillis(emailVerificationTokenExpiryDuration));
         emailVerificationTokenRepository.save(emailVerificationToken);
@@ -41,7 +43,7 @@ public class EmailVerificationTokenService {
      * Updates an existing token in the database with a new expiration
      */
     public EmailVerificationToken updateExistingTokenWithNameAndExpiry(EmailVerificationToken existingToken) {
-       // existingToken.setTokenStatus(TokenStatus.STATUS_PENDING);
+        existingToken.setTokenStatus(TokenStatus.STATUS_PENDING);
         existingToken.setExpiryDate(Instant.now().plusMillis(emailVerificationTokenExpiryDuration));
         return save(existingToken);
     }
@@ -76,6 +78,14 @@ public class EmailVerificationTokenService {
             throw new InvalidTokenRequestException("Email Verification Token", token.getToken(), "Expired token. Please issue a new request");
         }
     }
+
+    /**
+     * find token verification  by an email
+     */
+	public Optional<EmailVerificationToken> getTokenByEmail(String email) {
+		
+		return emailVerificationTokenRepository.findByUserEmail(email);
+	}
 
 }
 
