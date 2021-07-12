@@ -20,15 +20,21 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 import com.login.demo.dto.LoginDto;
 import com.login.demo.dto.RegisterDto;
+import com.login.demo.event.OnGenerateResetLinkEvent;
 import com.login.demo.event.OnRegenerateEmailVerificationEvent;
+import com.login.demo.event.OnUserAccountChangeEvent;
 import com.login.demo.event.OnUserRegistrationCompleteEvent;
 import com.login.demo.exceptions.InvalidTokenRequestException;
+import com.login.demo.exceptions.PasswordResetException;
+import com.login.demo.exceptions.PasswordResetLinkException;
 import com.login.demo.exceptions.UserLoginException;
 import com.login.demo.exceptions.UserRegistrationException;
 import com.login.demo.models.CustomUserDetails;
 import com.login.demo.models.EmailVerificationToken;
 import com.login.demo.models.payload.ApiResponse;
 import com.login.demo.models.payload.JwtAuthenticationResponse;
+import com.login.demo.models.payload.PasswordResetLinkRequest;
+import com.login.demo.models.payload.PasswordResetRequest;
 import com.login.demo.services.AuthService;
 import com.login.demo.services.security.JwtTokenProvider;
 
@@ -150,6 +156,44 @@ public class AuthController {
     public ResponseEntity resendTokenByEmail(@RequestParam("email") String email) {
     	return ResponseEntity.ok(authService.getTokenByEmail(email));
     	
+    }
+    
+    
+    /**
+     * Receives the reset link request and publishes an event to send email id containing
+     * the reset link if the request is valid. In future the deeplink should open within
+     * the app itself.
+     */
+    @PostMapping("/password/resetlink")
+    public ResponseEntity resetLink(@Valid @RequestBody PasswordResetLinkRequest passwordResetLinkRequest) {
+
+        return authService.generatePasswordResetToken(passwordResetLinkRequest)
+                .map(passwordResetToken -> {
+                    UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/password/reset");
+                    OnGenerateResetLinkEvent generateResetLinkMailEvent = new OnGenerateResetLinkEvent(passwordResetToken,
+                            urlBuilder);
+                    applicationEventPublisher.publishEvent(generateResetLinkMailEvent);
+                    return ResponseEntity.ok(new ApiResponse(true, "Password reset link sent successfully"));
+                })
+                .orElseThrow(() -> new PasswordResetLinkException(passwordResetLinkRequest.getEmail(), "Couldn't create a valid token"));
+    }
+
+    /**
+     * Receives a new passwordResetRequest and sends the acknowledgement after
+     * changing the password to the user's mail through the event.
+     */
+
+    @PostMapping("/password/reset")
+    public ResponseEntity resetPassword(@Valid @RequestBody PasswordResetRequest passwordResetRequest) {
+
+        return authService.resetPassword(passwordResetRequest)
+                .map(changedUser -> {
+                    OnUserAccountChangeEvent onPasswordChangeEvent = new OnUserAccountChangeEvent(changedUser, "Reset Password",
+                            "Changed Successfully");
+                    applicationEventPublisher.publishEvent(onPasswordChangeEvent);
+                    return ResponseEntity.ok(new ApiResponse(true, "Password changed successfully"));
+                })
+                .orElseThrow(() -> new PasswordResetException(passwordResetRequest.getToken(), "Error in resetting password"));
     }
     
     

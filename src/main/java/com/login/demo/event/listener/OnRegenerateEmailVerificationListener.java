@@ -1,10 +1,11 @@
-package com.login.demo.event;
+package com.login.demo.event.listener;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
+import com.login.demo.event.OnRegenerateEmailVerificationEvent;
 import com.login.demo.exceptions.MailSendException;
 import com.login.demo.models.EmailVerificationToken;
 import com.login.demo.models.User;

@@ -1,8 +1,9 @@
-package com.login.demo.event;
+package com.login.demo.event.listener;
 
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
 
+import com.login.demo.event.OnUserRegistrationCompleteEvent;
 import com.login.demo.exceptions.MailSendException;
 import com.login.demo.models.User;
 import com.login.demo.services.EmailVerificationTokenService;

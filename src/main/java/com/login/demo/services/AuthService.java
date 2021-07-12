@@ -13,12 +13,17 @@ import org.springframework.security.core.Authentication;
 
 import com.login.demo.dto.LoginDto;
 import com.login.demo.dto.RegisterDto;
-
+import com.login.demo.exceptions.PasswordResetLinkException;
 import com.login.demo.exceptions.ResourceAlreadyInUseException;
 import com.login.demo.exceptions.ResourceNotFoundException;
+import com.login.demo.exceptions.UpdatePasswordException;
 import com.login.demo.models.CustomUserDetails;
 import com.login.demo.models.EmailVerificationToken;
+import com.login.demo.models.PasswordResetToken;
 import com.login.demo.models.User;
+import com.login.demo.models.payload.PasswordResetLinkRequest;
+import com.login.demo.models.payload.PasswordResetRequest;
+import com.login.demo.models.payload.UpdatePasswordRequest;
 import com.login.demo.services.security.JwtTokenProvider;
 
 
@@ -31,6 +36,8 @@ public class AuthService {
 	    private final AuthenticationManager authenticationManager;
 	    private final JwtTokenProvider tokenProvider;
 	    private final EmailVerificationTokenService emailVerificationTokenService;
+	    private final PasswordResetTokenService passwordResetTokenService;
+
 
 
 	   
@@ -39,14 +46,17 @@ public class AuthService {
 		@Autowired
 	    public AuthService(UserService userService, PasswordEncoder passwordEncoder,
 				AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider,
-				EmailVerificationTokenService emailVerificationTokenService) {
+				EmailVerificationTokenService emailVerificationTokenService,
+				PasswordResetTokenService passwordResetTokenService) {
 			super();
 			this.userService = userService;
 			this.passwordEncoder = passwordEncoder;
 			this.authenticationManager = authenticationManager;
 			this.tokenProvider = tokenProvider;
 			this.emailVerificationTokenService = emailVerificationTokenService;
+			this.passwordResetTokenService = passwordResetTokenService;
 		}
+
 
 	
 	    
@@ -68,7 +78,8 @@ public class AuthService {
 	        return Optional.ofNullable(registeredNewUser);
 	    }
 	    
-	    /**
+	    
+		/**
 	     * Checks if the given email already exists in the database repository or not
 	     *
 	     * @return true if the email exists else false
@@ -159,10 +170,71 @@ public class AuthService {
 	    	return Optional.ofNullable(emailVerificationToken.getToken());
 			
 		}
+	    
+	    
+	    /**
+	     * Validates the password of the current logged in user with the given password
+	     */
+	    private Boolean currentPasswordMatches(User currentUser, String password) {
+	        return passwordEncoder.matches(password, currentUser.getPassword());
+	    }
+	    
+	    
+	    /**
+	     * Updates the password of the current logged in user
+	     */
+	    public Optional<User> updatePassword(CustomUserDetails customUserDetails,
+	                                         UpdatePasswordRequest updatePasswordRequest) {
+	        String email = customUserDetails.getEmail();
+	        User currentUser = userService.findByEmail(email)
+	                .orElseThrow(() -> new UpdatePasswordException(email, "No matching user found"));
+
+	        if (!currentPasswordMatches(currentUser, updatePasswordRequest.getOldPassword())) {
+	            throw new UpdatePasswordException(currentUser.getEmail(), "Invalid current password");
+	        }
+	        String newPassword = passwordEncoder.encode(updatePasswordRequest.getNewPassword());
+	        currentUser.setPassword(newPassword);
+	        userService.save(currentUser);
+	        return Optional.of(currentUser);
+	    }
+	    
 
 	    
 	    
-	    
+	    /**
+	     * Generates a password reset token from the given reset request
+	     */
+	    public Optional<PasswordResetToken> generatePasswordResetToken(PasswordResetLinkRequest passwordResetLinkRequest) {
+	        String email = passwordResetLinkRequest.getEmail();
+	        return userService.findByEmail(email)
+	                .map(user -> {
+	                    PasswordResetToken passwordResetToken = passwordResetTokenService.createToken();
+	                    passwordResetToken.setUser(user);
+	                    passwordResetTokenService.save(passwordResetToken);
+	                    return Optional.of(passwordResetToken);
+	                })
+	                .orElseThrow(() -> new PasswordResetLinkException(email, "No matching user found for the given request"));
+	    }
+
+	    /**
+	     * Reset a password given a reset request and return the updated user
+	     */
+	    public Optional<User> resetPassword(PasswordResetRequest passwordResetRequest) {
+	        String token = passwordResetRequest.getToken();
+	        PasswordResetToken passwordResetToken = passwordResetTokenService.findByToken(token)
+	                .orElseThrow(() -> new ResourceNotFoundException("Password Reset Token", "Token Id", token));
+
+	        passwordResetTokenService.verifyExpiration(passwordResetToken);
+	        final String encodedPassword = passwordEncoder.encode(passwordResetRequest.getPassword());
+
+	        return Optional.of(passwordResetToken)
+	                .map(PasswordResetToken::getUser)
+	                .map(user -> {
+	                    user.setPassword(encodedPassword);
+	                    userService.save(user);
+	                    return user;
+	                });
+	    }
 	
 
 }
