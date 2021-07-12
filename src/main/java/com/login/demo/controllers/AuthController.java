@@ -18,10 +18,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
-
 import com.login.demo.dto.LoginDto;
 import com.login.demo.dto.RegisterDto;
-
+import com.login.demo.event.OnUserRegistrationCompleteEvent;
 import com.login.demo.exceptions.InvalidTokenRequestException;
 import com.login.demo.exceptions.UserLoginException;
 import com.login.demo.exceptions.UserRegistrationException;
@@ -75,7 +74,6 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity authenticateUser(@RequestBody LoginDto loginRequest) {
-        System.out.println("----------------------000");
 
         Authentication authentication = authService.authenticateUser(loginRequest)
                 .orElseThrow(() -> new UserLoginException("Couldn't login user [" + loginRequest + "]"));
@@ -95,17 +93,33 @@ public class AuthController {
      */
     @PostMapping("/register")
     public ResponseEntity registerUser(@Valid @RequestBody RegisterDto registrationRequest) {
-
-    	return authService.registerUser(registrationRequest)
+        return authService.registerUser(registrationRequest)
                 .map(user -> {
-                   
+                	UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/auth/registrationConfirmation");
+                    System.out.println(urlBuilder);
+                	OnUserRegistrationCompleteEvent onUserRegistrationCompleteEvent = new OnUserRegistrationCompleteEvent(user, urlBuilder);
+                    applicationEventPublisher.publishEvent(onUserRegistrationCompleteEvent);
+                    System.out.println("-********* From registerUser authcontroller --*********");
+                    System.out.println(onUserRegistrationCompleteEvent);
+
                     return ResponseEntity.ok(new ApiResponse(true, "User registered successfully. Check your email for verification"));
                 })
                 .orElseThrow(() -> new UserRegistrationException(registrationRequest.getEmail(), "Missing user object in database"));
     	}
 
     
-    
+    /**
+     * Confirm the email verification token generated for the user during
+     * registration. If token is invalid or token is expired, report error.
+     */
+    @GetMapping("/registrationConfirmation")
+    public ResponseEntity confirmRegistration(@RequestParam("token") String token) {
+    	System.out.println("-********* From registrationConfirmation authcontroller --*********");
+        return authService.confirmEmailRegistration(token)
+                .map(user -> 
+                ResponseEntity.ok(new ApiResponse(true, "User verified successfully")))
+                .orElseThrow(() -> new InvalidTokenRequestException("Email Verification Token", token, "Failed to confirm. Please generate a new email verification request"));
+    }
     
     
     

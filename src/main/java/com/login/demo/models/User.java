@@ -28,9 +28,9 @@ import com.login.demo.models.audit.DateAudit;
 
 
 @Entity(name = "USERS")
-public class User extends DateAudit{
-	
-	@Id
+public class User extends DateAudit {
+
+    @Id
     @Column(name = "USER_ID")
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "user_seq")
     @SequenceGenerator(name = "user_seq", allocationSize = 1)
@@ -178,6 +178,4 @@ public class User extends DateAudit{
                 + password + '\'' + ", firstName='" + firstName + '\'' + ", lastName='" + lastName + '\'' + ", active="
                 + active + ", roles=" + roles + ", isEmailVerified=" + isEmailVerified + '}';
     }
-	
-
 }

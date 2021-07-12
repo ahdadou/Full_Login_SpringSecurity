@@ -81,15 +81,15 @@ public class UserService {
      * Creates a new user from the registration request
      */
     public User createUser(RegisterDto registerRequest) {
-        User newUser = new User();
-        Boolean isNewUserAsAdmin = registerRequest.getRegisterAsAdmin();
-        newUser.setEmail(registerRequest.getEmail());
-        newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
-        newUser.setUsername(registerRequest.getEmail());
-        newUser.addRoles(getRolesForNewUser(isNewUserAsAdmin));
-        newUser.setActive(true);
-        newUser.setEmailVerified(true);
-        return newUser;
+    	  User newUser = new User();
+          Boolean isNewUserAsAdmin = registerRequest.getRegisterAsAdmin();
+          newUser.setEmail(registerRequest.getEmail());
+          newUser.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+          newUser.setUsername(registerRequest.getEmail());
+          newUser.addRoles(getRolesForNewUser(isNewUserAsAdmin));
+          newUser.setActive(true);
+          newUser.setEmailVerified(false);
+          return newUser;
     }
 
     /**
@@ -106,19 +106,7 @@ public class UserService {
         return newUserRoles;
     }
 
-    /**
-     * Log the given user out and delete the refresh token associated with it. If no device
-     * id is found matching the database for the given user, throw a log out exception.
-     */
-//    public void logoutUser(@CurrentUser CustomUserDetails currentUser, LogOutRequest logOutRequest) {
-//        String deviceId = logOutRequest.getDeviceInfo().getDeviceId();
-//        UserDevice userDevice = userDeviceService.findByUserId(currentUser.getId())
-//                .filter(device -> device.getDeviceId().equals(deviceId))
-//                .orElseThrow(() -> new UserLogoutException(logOutRequest.getDeviceInfo().getDeviceId(), "Invalid device Id supplied. No matching device found for the given user "));
-//
-//        logger.info("Removing refresh token associated with device [" + userDevice + "]");
-//        refreshTokenService.deleteById(userDevice.getRefreshToken().getId());
-//    }
+
 	
 	
 

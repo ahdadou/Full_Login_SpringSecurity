@@ -17,6 +17,7 @@ import com.login.demo.dto.RegisterDto;
 import com.login.demo.exceptions.ResourceAlreadyInUseException;
 import com.login.demo.exceptions.ResourceNotFoundException;
 import com.login.demo.models.CustomUserDetails;
+import com.login.demo.models.EmailVerificationToken;
 import com.login.demo.models.User;
 import com.login.demo.services.security.JwtTokenProvider;
 
@@ -29,21 +30,26 @@ public class AuthService {
 	    private final PasswordEncoder passwordEncoder;
 	    private final AuthenticationManager authenticationManager;
 	    private final JwtTokenProvider tokenProvider;
+	    private final EmailVerificationTokenService emailVerificationTokenService;
 
 
 	   
 
 		
-		
-	    @Autowired
+		@Autowired
 	    public AuthService(UserService userService, PasswordEncoder passwordEncoder,
-				AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider
-				) {
+				AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider,
+				EmailVerificationTokenService emailVerificationTokenService) {
+			super();
 			this.userService = userService;
 			this.passwordEncoder = passwordEncoder;
 			this.authenticationManager = authenticationManager;
 			this.tokenProvider = tokenProvider;
+			this.emailVerificationTokenService = emailVerificationTokenService;
 		}
+
+	
+	    
 
 		/**
 	     * Registers a new user in the database by performing a series of quick checks.
@@ -84,7 +90,6 @@ public class AuthService {
 	     * Authenticate user and log them in given a loginRequest
 	     */
 	    public Optional<Authentication> authenticateUser(LoginDto loginRequest) {
-	    	System.out.println("----------------------00011");
 	    	System.out.println(loginRequest.getEmail()+"   "+loginRequest.getPassword());
 	        return Optional.ofNullable(authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(),
 	                loginRequest.getPassword())));
@@ -111,6 +116,27 @@ public class AuthService {
 	   
 	
 
+	    /**
+	     * Confirms the user verification based on the token expiry and mark the user as active.
+	     * If user is already verified, save the unnecessary database calls.
+	     */
+	    public Optional<User> confirmEmailRegistration(String emailToken) {
+	        EmailVerificationToken emailVerificationToken = emailVerificationTokenService.findByToken(emailToken)
+	                .orElseThrow(() -> new ResourceNotFoundException("Token", "Email verification", emailToken));
+
+	        User registeredUser = emailVerificationToken.getUser();
+	        if (registeredUser.getEmailVerified()) {
+	            return Optional.of(registeredUser);
+	        }
+
+	        emailVerificationTokenService.verifyExpiration(emailVerificationToken);
+	        emailVerificationToken.setConfirmedStatus();
+	        emailVerificationTokenService.save(emailVerificationToken);
+
+	        registeredUser.markVerificationConfirmed();
+	        userService.save(registeredUser);
+	        return Optional.of(registeredUser);
+	    }
 	    
 	    
 	    

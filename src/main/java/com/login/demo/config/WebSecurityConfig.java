@@ -22,7 +22,7 @@ import com.login.demo.services.security.JwtAuthenticationEntryPoint;
 import com.login.demo.services.security.JwtAuthenticationFilter;
 
 @Configuration
-@EnableWebSecurity(debug = true)
+@EnableWebSecurity
 @EnableGlobalMethodSecurity(
         securedEnabled = true,
         jsr250Enabled = true,
