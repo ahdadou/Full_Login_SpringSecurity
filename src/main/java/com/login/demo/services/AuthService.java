@@ -2,6 +2,8 @@ package com.login.demo.services;
 
 import java.util.Optional;
 
+import javax.validation.Valid;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,13 +18,16 @@ import com.login.demo.dto.RegisterDto;
 import com.login.demo.exceptions.PasswordResetLinkException;
 import com.login.demo.exceptions.ResourceAlreadyInUseException;
 import com.login.demo.exceptions.ResourceNotFoundException;
+import com.login.demo.exceptions.TokenRefreshException;
 import com.login.demo.exceptions.UpdatePasswordException;
 import com.login.demo.models.CustomUserDetails;
 import com.login.demo.models.EmailVerificationToken;
 import com.login.demo.models.PasswordResetToken;
+import com.login.demo.models.RefreshToken;
 import com.login.demo.models.User;
 import com.login.demo.models.payload.PasswordResetLinkRequest;
 import com.login.demo.models.payload.PasswordResetRequest;
+import com.login.demo.models.payload.TokenRefreshRequest;
 import com.login.demo.models.payload.UpdatePasswordRequest;
 import com.login.demo.services.security.JwtTokenProvider;
 
@@ -37,29 +42,24 @@ public class AuthService {
 	    private final JwtTokenProvider tokenProvider;
 	    private final EmailVerificationTokenService emailVerificationTokenService;
 	    private final PasswordResetTokenService passwordResetTokenService;
+	    private final RefreshTokenService refreshTokenService;
 
 
-
-	   
-
-		
-		@Autowired
-	    public AuthService(UserService userService, PasswordEncoder passwordEncoder,
+	    
+	    @Autowired
+		public AuthService(UserService userService, PasswordEncoder passwordEncoder,
 				AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider,
 				EmailVerificationTokenService emailVerificationTokenService,
-				PasswordResetTokenService passwordResetTokenService) {
-			super();
+				PasswordResetTokenService passwordResetTokenService, RefreshTokenService refreshTokenService) {
 			this.userService = userService;
 			this.passwordEncoder = passwordEncoder;
 			this.authenticationManager = authenticationManager;
 			this.tokenProvider = tokenProvider;
 			this.emailVerificationTokenService = emailVerificationTokenService;
 			this.passwordResetTokenService = passwordResetTokenService;
+			this.refreshTokenService = refreshTokenService;
 		}
 
-
-	
-	    
 
 		/**
 	     * Registers a new user in the database by performing a series of quick checks.
@@ -235,6 +235,46 @@ public class AuthService {
 	                    return user;
 	                });
 	    }
-	
+
+
+	    
+	    /**
+	     * Refresh the expired jwt token using a refresh token and device info. The
+	     * * refresh token is mapped to a specific device and if it is unexpired, can help
+	     * * generate a new jwt. If the refresh token is inactive for a device or it is expired,
+	     * * throw appropriate errors.
+	     */
+	    public Optional<String> refreshJwtToken(TokenRefreshRequest tokenRefreshRequest) {
+	        String requestRefreshToken = tokenRefreshRequest.getRefreshToken();
+
+	        return Optional.of(refreshTokenService.findByToken(requestRefreshToken)
+	                .map(refreshToken -> {
+	                    refreshTokenService.verifyExpiration(refreshToken);
+//	                    userDeviceService.verifyRefreshAvailability(refreshToken);
+	                    refreshTokenService.increaseCount(refreshToken);
+	                    return refreshToken;
+	                })
+	                .map(RefreshToken::getUser)          
+//	                .map(UserDevice::getUser)
+	                .map(User::getId).map(this::generateTokenFromUserId))
+	                .orElseThrow(() -> new TokenRefreshException(requestRefreshToken, "Missing refresh token in database.Please login again"));
+	    }
+	    
+	    
+	    
+	    
+	    /**
+	     * Creates and persists the refresh token for the user device. If device exists
+	     * already, we don't care. Unused devices with expired tokens should be cleaned
+	     * with a cron job. The generated token would be encapsulated within the jwt.
+	     * Remove the existing refresh token as the old one should not remain valid.
+	     */
+	    public Optional<RefreshToken> createAndPersistRefreshTokenForDevice(Authentication authentication, LoginDto loginRequest) {
+	        User currentUser = (User) authentication.getPrincipal();
+	        RefreshToken refreshToken = refreshTokenService.createRefreshToken();	
+	        refreshToken.setUser(currentUser);
+	        refreshToken = refreshTokenService.save(refreshToken);
+	        return Optional.ofNullable(refreshToken);
+	    }
 
 }

@@ -27,14 +27,17 @@ import com.login.demo.event.OnUserRegistrationCompleteEvent;
 import com.login.demo.exceptions.InvalidTokenRequestException;
 import com.login.demo.exceptions.PasswordResetException;
 import com.login.demo.exceptions.PasswordResetLinkException;
+import com.login.demo.exceptions.TokenRefreshException;
 import com.login.demo.exceptions.UserLoginException;
 import com.login.demo.exceptions.UserRegistrationException;
 import com.login.demo.models.CustomUserDetails;
 import com.login.demo.models.EmailVerificationToken;
+import com.login.demo.models.RefreshToken;
 import com.login.demo.models.payload.ApiResponse;
 import com.login.demo.models.payload.JwtAuthenticationResponse;
 import com.login.demo.models.payload.PasswordResetLinkRequest;
 import com.login.demo.models.payload.PasswordResetRequest;
+import com.login.demo.models.payload.TokenRefreshRequest;
 import com.login.demo.services.AuthService;
 import com.login.demo.services.security.JwtTokenProvider;
 
@@ -77,23 +80,41 @@ public class AuthController {
     }
     
     
-    /**
-     * Entry point for the user log in. Return the jwt auth token and the refresh token
-     */
+//    /**
+//     * Entry point for the user log in. Return the jwt auth token and the refresh token
+//     */
+//    @PostMapping("/login")
+//    public ResponseEntity authenticateUser(@RequestBody LoginDto loginRequest) {
+//
+//        Authentication authentication = authService.authenticateUser(loginRequest)
+//                .orElseThrow(() -> new UserLoginException("Couldn't login user [" + loginRequest + "]"));
+//
+//        SecurityContextHolder.getContext().setAuthentication(authentication);
+//        CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
+//        String jwtToken = authService.generateToken(customUserDetails);
+//        return ResponseEntity.ok(new JwtAuthenticationResponse(jwtToken, "", tokenProvider.getExpiryDuration()));
+//        		
+//        		
+//    }
+
+    
     @PostMapping("/login")
-    public ResponseEntity authenticateUser(@RequestBody LoginDto loginRequest) {
+    public ResponseEntity authenticateUser(@Valid @RequestBody LoginDto loginRequest) {
 
         Authentication authentication = authService.authenticateUser(loginRequest)
                 .orElseThrow(() -> new UserLoginException("Couldn't login user [" + loginRequest + "]"));
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
         CustomUserDetails customUserDetails = (CustomUserDetails) authentication.getPrincipal();
-        String jwtToken = authService.generateToken(customUserDetails);
-        return ResponseEntity.ok(new JwtAuthenticationResponse(jwtToken, "", tokenProvider.getExpiryDuration()));
-        		
-        		
-    }
+        SecurityContextHolder.getContext().setAuthentication(authentication);
 
+        return authService.createAndPersistRefreshTokenForDevice(authentication, loginRequest)
+                .map(RefreshToken::getToken)
+                .map(refreshToken -> {
+                    String jwtToken = authService.generateToken(customUserDetails);
+                    return ResponseEntity.ok(new JwtAuthenticationResponse(jwtToken, refreshToken, tokenProvider.getExpiryDuration()));
+                })
+                .orElseThrow(() -> new UserLoginException("Couldn't create refresh token for: [" + loginRequest + "]"));
+    }
     
     /**
      * Entry point for the user registration process. On successful registration,
@@ -169,7 +190,7 @@ public class AuthController {
 
         return authService.generatePasswordResetToken(passwordResetLinkRequest)
                 .map(passwordResetToken -> {
-                    UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/password/reset");
+                    UriComponentsBuilder urlBuilder = ServletUriComponentsBuilder.fromCurrentContextPath().path("/api/auth/password/reset");
                     OnGenerateResetLinkEvent generateResetLinkMailEvent = new OnGenerateResetLinkEvent(passwordResetToken,
                             urlBuilder);
                     applicationEventPublisher.publishEvent(generateResetLinkMailEvent);
@@ -196,6 +217,27 @@ public class AuthController {
                 .orElseThrow(() -> new PasswordResetException(passwordResetRequest.getToken(), "Error in resetting password"));
     }
     
+    
+    
+    /**
+     * Refresh the expired jwt token using a refresh token for the specific device
+     * and return a new token to the caller
+     */
+    @PostMapping("/refresh")
+    
+    public ResponseEntity refreshJwtToken(@Valid @RequestBody TokenRefreshRequest tokenRefreshRequest) {
+
+        return authService.refreshJwtToken(tokenRefreshRequest)
+                .map(updatedToken -> {
+                    String refreshToken = tokenRefreshRequest.getRefreshToken();
+                   // logger.info("Created new Jwt Auth token: " + updatedToken);
+                    return ResponseEntity.ok(new JwtAuthenticationResponse(updatedToken, refreshToken, tokenProvider.getExpiryDuration()));
+                })
+                .orElseThrow(() -> new TokenRefreshException(tokenRefreshRequest.getRefreshToken(), "Unexpected error during token refresh. Please logout and login again."));
+    }
+    
+    
+   
     
     
     
